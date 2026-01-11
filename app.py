@@ -1,8 +1,7 @@
 
 
 
-from dotenv import load_dotenv
-load_dotenv()
+
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.graphs import Neo4jGraph
 from langchain_huggingface import HuggingFaceEndpointEmbeddings

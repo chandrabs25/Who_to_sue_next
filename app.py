@@ -23,7 +23,7 @@ def resources():
         password=st.secrets["NEO4J_PASSWORD"]
     )
     embeddings = HuggingFaceEndpointEmbeddings(model_name="BAAI/bge-m3",huggingfacehub_api_token=st.secrets["HF_TOKEN"],task="feature-extraction")
-    llm = ChatGroq(model_name="moonshotai/kimi-k2-instruct-0905", temperature=0, api_key=st.secrets["GROQ_API_KEY"])
+    llm = ChatGroq(model="moonshotai/kimi-k2-instruct-0905", temperature=0, api_key=st.secrets["GROQ_API_KEY"])
     return graph, embeddings, llm
 
 try:

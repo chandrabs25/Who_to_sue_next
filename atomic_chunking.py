@@ -4,18 +4,12 @@ import os
 
 
 def parse_atomic_units(text):
-    """
-    Splits legal text into atomic units based on numbering ((1), (a))
-    and specific legal clauses (Provided that).
-    """
-    # Clean basic formatting
+
     clean_text = text.replace("\r\n", " ").replace("\n", " ").strip()
 
-    # Define Split Pattern: Markers like (1), (a), or "Provided that"
     pattern = r'(\(\w+\)|Provided that)'
 
     parts = re.split(pattern, clean_text)
-
     chunks = []
     current_chunk = ""
 
@@ -35,6 +29,35 @@ def parse_atomic_units(text):
         chunks.append(current_chunk.strip())
 
     return chunks
+
+
+def parse_definitions_by_quotes(text):
+
+    clean_text = text.replace("\r\n", " ").replace("\n", " ").strip()
+
+    # Matches (1) "advertisement"
+    pattern = r'(\(\d+\)\s*".+?")'
+
+    parts = re.split(pattern, clean_text)
+
+    definitions = []
+    current_header = ""
+
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+
+        if re.match(pattern, part):
+            current_header = part
+        elif current_header:
+            full_definition = f"{current_header} {part}"
+            definitions.append(full_definition)
+            current_header = ""
+        else:
+            pass
+
+    return definitions
 
 
 def process_file(input_filename, output_filename):
@@ -59,42 +82,60 @@ def process_file(input_filename, output_filename):
             sec_id = section.get("section", "")
             raw_content = section.get("content", "")
 
-            # 1. Get the list of raw text chunks
-            atomic_units_text = parse_atomic_units(raw_content)
-
             atomic_units_objects = []
 
-            # 2. Iterate to build enriched objects
-            for i, unit_text in enumerate(atomic_units_text):
+            # --- BRANCHING LOGIC ---
+            if str(sec_id) == "2":
+                # STRATEGY FOR DEFINITIONS
+                raw_chunks = parse_definitions_by_quotes(raw_content)
 
-                # Determine type
-                is_proviso = unit_text.startswith("Provided")
-                unit_type = "proviso" if is_proviso else "clause"
+                for i, unit_text in enumerate(raw_chunks):
+                    # --- NEW LOGIC: Extract the Term ---
+                    # Finds the first text inside double quotes, e.g., "consumer"
+                    term_match = re.search(r'"(.+?)"', unit_text)
+                    term_value = term_match.group(1) if term_match else "Unknown"
 
-                # --- NEW LOGIC: SEMANTIC ANCHORING ---
-                # If it is a proviso, grab the context of the PREVIOUS chunk.
-                # This anchors the exception to the rule it likely modifies.
-                anchor_text = ""
-                if is_proviso and i > 0:
-                    prev_text = atomic_units_text[i - 1]
-                    # Truncate prev_text if it's too long to avoid token bloat (optional)
-                    anchor_text = f"[Context from Preceding Clause: {prev_text[:200]}...] "
+                    context_str = (
+                        f"Chapter: {chapter_name} | "
+                        f"Section: {sec_id} {title} | "
+                        f"Definition: {unit_text}"
+                    )
 
-                # Build the String for the Embedding Model
-                # Format: Chapter | Section | [Anchor] Content
-                context_str = (
-                    f"Chapter: {chapter_name} | "
-                    f"Section: {sec_id} {title} | "
-                    f"Content: {anchor_text}{unit_text}"
-                )
+                    atomic_units_objects.append({
+                        "chunk_index": i,
+                        "unit_type": "definition",
+                        "term": term_value,  # <--- NEW KEY ADDED HERE
+                        "text": unit_text,
+                        "enriched_context": context_str,
+                        "parent_section_id": sec_id
+                    })
 
-                atomic_units_objects.append({
-                    "chunk_index": i,
-                    "unit_type": unit_type,
-                    "text": unit_text,  # Clean text for display
-                    "enriched_context": context_str,  # Anchored text for vector search
-                    "parent_section_id": sec_id
-                })
+            else:
+                # STRATEGY FOR STANDARD SECTIONS
+                raw_chunks = parse_atomic_units(raw_content)
+
+                for i, unit_text in enumerate(raw_chunks):
+                    is_proviso = unit_text.startswith("Provided")
+                    unit_type = "proviso" if is_proviso else "clause"
+
+                    anchor_text = ""
+                    if is_proviso and i > 0:
+                        prev_text = raw_chunks[i - 1]
+                        anchor_text = f"[Context from Preceding Clause: {prev_text[:200]}...] "
+
+                    context_str = (
+                        f"Chapter: {chapter_name} | "
+                        f"Section: {sec_id} {title} | "
+                        f"Content: {anchor_text}{unit_text}"
+                    )
+
+                    atomic_units_objects.append({
+                        "chunk_index": i,
+                        "unit_type": unit_type,
+                        "text": unit_text,
+                        "enriched_context": context_str,
+                        "parent_section_id": sec_id
+                    })
 
             processed_sections.append({
                 "section_id": sec_id,
@@ -111,13 +152,10 @@ def process_file(input_filename, output_filename):
     with open(output_filename, 'w', encoding='utf-8') as f:
         json.dump(processed_data, f, indent=4, ensure_ascii=False)
 
-    print(f"Success! Processed data with Semantic Anchors saved to: {output_filename}")
+    print(f"Success! Processed data saved to: {output_filename}")
 
 
 # --- Execution Block ---
 if __name__ == "__main__":
-
-    dummy_input = "clean_data.json"
-
-
-    process_file(dummy_input, "cpa_anchored.json")
+    input = "clean_data.json"
+    process_file(input, "cpa_anchored_refined_v2.json")

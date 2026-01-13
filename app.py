@@ -1,6 +1,4 @@
-
-
-
+import os
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.graphs import Neo4jGraph
@@ -14,6 +12,9 @@ if "LANGCHAIN_API_KEY" in st.secrets:
     os.environ["LANGCHAIN_ENDPOINT"] = st.secrets["LANGCHAIN_ENDPOINT"]
     os.environ["LANGCHAIN_API_KEY"] = st.secrets["LANGCHAIN_API_KEY"]
     os.environ["LANGCHAIN_PROJECT"] = st.secrets["LANGCHAIN_PROJECT"]
+    os.environ["LANGSMITH_TRACING"]= st.secrets["LANGSMITH_TRACING"]
+    os.environ["LANGSMITH_ENDPOINT"] = st.secrets["LANGSMITH_ENDPOINT"]
+    os.environ["LANGSMITH_API_KEY"] = st.secrets["LANGSMITH_API_KEY"]
 st.title("WHO TO SUE NEXT")
 @st.cache_resource
 def resources():
@@ -159,9 +160,12 @@ if prompt:=st.chat_input("Ask a question about Indian consumer protection law"):
             """
             prompt_template = ChatPromptTemplate.from_messages([('system', system_prompt), ('user', "{question}")])
             chain = prompt_template | groq_llm | StrOutputParser()
-            response = chain.invoke({'llm_query': graph_context, 'question': prompt})
+            response=''
+            for chunk in chain.stream({'llm_query': graph_context, 'question': prompt}):
+                response+=chunk
+                message_placeholder.markdown(response)
 
-            message_placeholder.markdown(response)
+
             st.session_state.messages.append({"role": "assistant", "content": response})
         except Exception as e:
             st.error(e)

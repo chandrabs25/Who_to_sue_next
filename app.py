@@ -49,7 +49,7 @@ def get_vector_rag_resources():
     for chapter in data:
         for section in chapter['sections']:
             parent_store[section['section_id']] = section['original_content']
-    vector_llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash', temperature=0)
+    vector_llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash', temperature=0.2)
     return ensemble_retriever, vector_llm, parent_store
 try:
     ensemble_retriever, vector_llm, parent_store = get_vector_rag_resources()

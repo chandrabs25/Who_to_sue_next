@@ -8,3 +8,4 @@ python-dotenv
 chromadb
 pysqlite3-binary
 rank_bm25
+langchain-google-genai

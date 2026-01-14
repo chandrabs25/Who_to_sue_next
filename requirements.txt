@@ -4,5 +4,7 @@ langchain-core
 langchain-groq
 langchain-huggingface
 neo4j
-sentence-transformers
 python-dotenv
+chromadb
+pysqlite3-binary
+rank_bm25

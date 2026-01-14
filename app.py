@@ -18,6 +18,7 @@ from langchain_groq import ChatGroq
 from langchain_core.output_parsers import StrOutputParser
 from langchain_community.vectorstores import Chroma
 from langchain_classic.retrievers import EnsembleRetriever
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 import streamlit as st
 import pickle
@@ -30,6 +31,7 @@ if "LANGCHAIN_API_KEY" in st.secrets:
     os.environ["LANGSMITH_TRACING"]= st.secrets["LANGSMITH_TRACING"]
     os.environ["LANGSMITH_ENDPOINT"] = st.secrets["LANGSMITH_ENDPOINT"]
     os.environ["LANGSMITH_API_KEY"] = st.secrets["LANGSMITH_API_KEY"]
+    os.environ["GOOGLE_API_KEY"]= st.secrets["GOOGLE_API_KEY"]
 st.title("WHO TO SUE NEXT")
 @st.cache_resource
 def get_vector_rag_resources():
@@ -47,7 +49,7 @@ def get_vector_rag_resources():
     for chapter in data:
         for section in chapter['sections']:
             parent_store[section['section_id']] = section['original_content']
-    vector_llm = ChatGroq(model_name="moonshotai/kimi-k2-instruct-0905",temperature=0.0,api_key=st.secrets["GROQ_API_KEY"])
+    vector_llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash', temperature=0)
     return ensemble_retriever, vector_llm, parent_store
 try:
     ensemble_retriever, vector_llm, parent_store = get_vector_rag_resources()
@@ -63,7 +65,7 @@ def resources():
     )
     embeddings = HuggingFaceEndpointEmbeddings(model="BAAI/bge-m3", huggingfacehub_api_token=st.secrets["HF_TOKEN"],
                                                task="feature-extraction")
-    llm = ChatGroq(model_name="moonshotai/kimi-k2-instruct-0905", temperature=0, api_key=st.secrets["GROQ_API_KEY"])
+    llm = ChatGoogleGenerativeAI(model='gemini-2.5-flash', temperature=0)
     return graph, embeddings, llm
 
 try:
@@ -225,7 +227,7 @@ if prompt:=st.chat_input("Ask a question about Indian consumer protection law"):
         except Exception as e:
             status_vector_bm25.write("An error occured")
 
-    start_time = time.time()
+
     with col2:
         st.subheader("Graph RAG")
         status_graph_rag = st.status("Traversing the graph", expanded=True)
@@ -245,15 +247,9 @@ if prompt:=st.chat_input("Ask a question about Indian consumer protection law"):
             status_graph_rag.write("graph context retrieved")
             with st.expander("Read context while waiting(avoiding token limit/min"):
                 st.markdown(graph_context_text)
-            time_elapsed = time.time() - start_time
-            remaining = 60 - time_elapsed
-            if int(remaining) > 0:
 
-                progress_bar = st.progress(0)
-                steps=int(remaining)
-                for i in range(steps):
-                    time.sleep(1)
-                    progress_bar.progress((i + 1)/steps)
+
+            
             status_graph_rag.write(f"Generating the answer")
 
             system_prompt = """
